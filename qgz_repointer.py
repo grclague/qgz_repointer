@@ -16,7 +16,7 @@ def replace_user(user, data):
 def replace_host(host,data):
 	outdata = []
 	for line in data:
-		outdata.append(re.sub(r"(host=\S*)", f"host='{host}'", line))
+		outdata.append(re.sub(r"(host=\S*)", f"host={host}", line))
 	return outdata
 
 #replaces all the usernames in the list of strings
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 	if args.password:
 		outdata = replace_password(args.password, outdata)
 	if args.dbname:
-		outdata = replace_password(args.dbname, outdata)
+		outdata = replace_dbname(args.dbname, outdata)
 	with open(f"./temp/{outfile_qgs}", 'w') as writefile:
 		writefile.writelines(outdata)
 	
