@@ -45,16 +45,7 @@ def zipdir(path, ziph):
 		for file in files:
 			ziph.write(os.path.join(root, file))
 
-if __name__ == "__main__":
-	parser = argparse.ArgumentParser(description='Generate PDF report')
-	parser.add_argument('-U', "--username", help="The replacement username")
-	parser.add_argument('-H', "--hostname", help="The replacement hostname")
-	parser.add_argument('-P', "--port", help="The replacement port")
-	parser.add_argument('-W', "--password", help="The replacement password")
-	parser.add_argument('-d', "--dbname", help="The replacement dbname")
-	parser.add_argument('infile', help="infile")
-	parser.add_argument('outfile', help="outfile")
-	args = parser.parse_args()
+def single_file_repoint(args):
 	infile = args.infile
 	outfile = args.outfile
 	print(f"Infile: {infile} outfile: {outfile}")
@@ -92,3 +83,65 @@ if __name__ == "__main__":
 		shutil.rmtree('./temp')
 	except OSError as e:
 		print ("Error: %s - %s." % (e.filename, e.strerror))
+
+def folder_repoint(args, infile):
+	# Make new output folder if it doesn't exist
+	if not os.path.exists(args.outfile):
+		os.makedirs(args.outfile)	
+	outfile = args.outfile
+	print(f"Infile: {infile} outfile: {outfile}")
+	with zipfile.ZipFile(f'{args.infile}/{infile}', 'r') as zip_ref:
+		zip_ref.extractall('./temp')
+	data = []
+	infile_qgs = re.sub(r'\.qgz$','.qgs',infile)
+	infile_qgd = re.sub(r'\.qgz$','.qgd',infile)
+	outfile_qgs = re.sub(r'\.qgz$','.qgs',infile)
+	outfile_qgd = re.sub(r'\.qgz$','.qgd',infile)
+	with open(f"./temp/{infile_qgs}", 'r') as myfile:
+		data = myfile.readlines()
+	outdata = data
+	if args.username:
+		outdata = replace_user(args.username, outdata)
+	if args.port:
+		outdata = replace_port(args.port, outdata)
+	if args.hostname:
+		outdata = replace_host(args.hostname, outdata)
+	if args.password:
+		outdata = replace_password(args.password, outdata)
+	if args.dbname:
+		outdata = replace_dbname(args.dbname, outdata)
+	with open(f"./{outfile}/{outfile_qgs}", 'w') as writefile:
+		writefile.writelines(outdata)
+	
+	os.rename(f"./temp/{infile_qgd}",f"./{outfile}/{outfile_qgd}")
+
+	os.remove(f"./temp/{infile_qgs}")
+
+	with zipfile.ZipFile(f"./{outfile}/{infile}", mode='w') as zip_out:
+		zip_out.write(f"./{outfile}/{outfile_qgd}")
+		zip_out.write(f"./{outfile}/{outfile_qgs}", compress_type=zipfile.ZIP_DEFLATED)
+	os.remove(f"./{outfile}/{outfile_qgd}")
+	os.remove(f"./{outfile}/{outfile_qgs}")
+	try:
+		shutil.rmtree('./temp')
+	except OSError as e:
+		print ("Error: %s - %s." % (e.filename, e.strerror))
+
+if __name__ == "__main__":
+	parser = argparse.ArgumentParser(description='Generate PDF report')
+	parser.add_argument('-U', "--username", help="The replacement username")
+	parser.add_argument('-H', "--hostname", help="The replacement hostname")
+	parser.add_argument('-P', "--port", help="The replacement port")
+	parser.add_argument('-W', "--password", help="The replacement password")
+	parser.add_argument('-d', "--dbname", help="The replacement dbname")
+	parser.add_argument('-f', "--folder", help="The folder to process instead of a single file", action='store_true')
+	parser.add_argument('infile', help="infile")
+	parser.add_argument('outfile', help="outfile")
+	args = parser.parse_args()
+	
+	if args.folder:
+		for filename in os.listdir(args.infile):
+			if filename.endswith(".qgz"):
+				folder_repoint(args, filename)
+	else:
+		single_file_repoint(args)
